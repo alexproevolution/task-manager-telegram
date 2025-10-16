@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+
+{% block title %}Задачи{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Задачи команды</h1>
+    <div>
+        <a href="{% url 'tasks:create_list' %}" class="btn btn-primary me-2">Создать список</a>
+        <a href="{% url 'tasks:create_task' %}" class="btn btn-success">Создать задачу</a>
+    </div>
+</div>
+
+{% if lists %}
+    <div class="row">
+        {% for list_item in lists %}
+            <div class="col-md-4 mb-3">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">{{ list_item.name }}</h5>
+                    </div>
+                    <ul class="list-group list-group-flush" id="tasks-{{ list_item.id }}">
+                        {% for task in list_item.tasks.all %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center {% if task.status == 'completed' %}completed{% endif %}" data-id="{{ task.id }}" data-assignee="{{ task.assignee.id }}">
+                                <div>
+                                    <strong>{{ task.title }}</strong> 
+                                    <br><small class="text-muted">
+                                        Assignee: {{ task.assignee.email|default:"Не назначено" }} | 
+                                        Due: {{ task.due_date|date:"d.m.Y H:i"|default:"Нет срока" }}
+                                    </small>
+                                    <br>
+                                    <span class="badge bg-{% if task.status == 'completed' %}success{% else %}warning{% endif %}">
+                                        {{ task.get_status_display|default:task.status }}
+                                    </span>
+                                </div>
+
+                                <div class="d-flex flex-column align-items-end gap-1">
+                                    {% if task.assignee == user and task.status != 'completed' %}
+                                        <button class="btn btn-sm btn-outline-success" onclick="completeTask({{ task.id }})">Завершить</button>
+                                    {% elif task.status != 'completed' %}
+                                        <span class="text-muted small">Только исполнитель</span>
+                                    {% endif %}
+
+                                    {% if task.created_by == user %}
+                                        <form action="{% url 'tasks:delete_task' task.pk %}" method="post" onsubmit="return confirm('Удалить задачу?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </li>
+                        {% empty %}
+                            <li class="list-group-item text-center text-muted">Нет задач</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="alert alert-info text-center">
+        <h4>Нет списков задач</h4>
+        <p><a href="{% url 'tasks:create_list' %}" class="btn btn-primary">Создать первый список</a></p>
+    </div>
+{% endif %}
+
+{% csrf_token %}
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');
+
+const socket = new WebSocket('ws://' + window.location.host + '/ws/tasks/');
+socket.onmessage = function(e) {
+    const data = JSON.parse(e.data);
+    if (data.type === 'task_update') {
+        const li = document.querySelector(`[data-id="${data.task_id}"]`);
+        if (li) {
+            const titleSpan = li.querySelector('strong');
+            if (titleSpan) titleSpan.textContent = data.title;
+
+            const badge = li.querySelector('.badge');
+            if (badge) {
+                badge.textContent = data.status;
+                badge.className = `badge bg-${data.status === 'completed' ? 'success' : 'warning'}`;
+            }
+
+            const assigneeSmall = li.querySelector('small');
+            if (assigneeSmall) assigneeSmall.innerHTML = `Assignee: ${data.assignee || 'Не назначено'} | Due: ${data.due_date ? new Date(data.due_date).toLocaleString() : 'Нет срока'}`;
+
+            if (data.status === 'completed') {
+                li.classList.add('completed');
+                const btn = li.querySelector('button');
+                if (btn) btn.remove();
+            }
+        }
+    } else if (data.type === 'notification') {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-info alert-dismissible fade show position-fixed';
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+        alertDiv.innerHTML = `${data.message} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+        document.body.appendChild(alertDiv);
+        setTimeout(() => alertDiv.remove(), 5000);
+    }
+};
+
+function completeTask(id) {
+    fetch(`/tasks/complete/${id}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.status === 'completed') {
+            const li = document.querySelector(`[data-id="${id}"]`);
+            if (li) {
+                li.classList.add('completed');
+                const badge = li.querySelector('.badge');
+                if (badge) {
+                    badge.textContent = 'completed';
+                    badge.className = 'badge bg-success';
+                }
+                const btn = li.querySelector('button');
+                if (btn) btn.remove();
+                alert('Задача завершена!');
+            }
+        } else {
+            alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        alert('Ошибка завершения: ' + error.message);
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Подключить Telegram{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h3>🤖 Привязка Telegram</h3>
+    <p>Чтобы получать уведомления о задачах прямо в Telegram:</p>
+    <ol>
+        <li>Откройте Telegram и перейдите в чат с нашим ботом.</li>
+        <li>Нажмите кнопку <b>Start</b>.</li>
+        <li>Бот автоматически свяжет ваш аккаунт с сайтом.</li>
+    </ol>
+
+    <div class="alert alert-info">
+        <strong>Ваш персональный токен привязки:</strong><br>
+        <code>{{ token }}</code>
+    </div>
+
+    {% if bot_username %}
+        <a href="https://t.me/{{ bot_username }}?start={{ token }}" 
+           target="_blank" class="btn btn-primary w-100">
+           🚀 Перейти к Telegram-боту
+        </a>
+    {% else %}
+        <div class="alert alert-warning mt-3">
+            ⚠️ Имя Telegram-бота не указано. Добавьте <code>TG_BOT_USERNAME</code> в .env
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

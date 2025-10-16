@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block title %}Профиль пользователя{% endblock %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h1 class="mb-0">Профиль: {{ user.get_full_name|default:user.email }} ({{ user.email }})</h1>
+                </div>
+                <div class="card-body">
+                    <p><strong>Email:</strong> {{ user.email }}</p>
+                    <p><strong>Дата регистрации:</strong> {{ user.date_joined|date:"d.m.Y H:i" }}</p>
+                    <p><strong>Статус:</strong> {% if user.is_active %}Активен{% else %}Удалён{% endif %}</p>
+                    
+                    <div class="d-grid gap-2 d-md-block">
+                        <a href="{% url 'users:profile_update' %}" class="btn btn-primary me-md-2">Редактировать профиль</a>
+                        
+                        <a href="{% url 'users:profile_delete' %}" 
+                           class="btn btn-danger me-md-2" 
+                           onclick="return confirm('Вы уверены? Удаление аккаунта необратимо!');">
+                           Удалить аккаунт
+                        </a>
+                        
+                        <a href="{% url 'users:logout' %}" class="btn btn-secondary me-md-2">Выйти из системы</a>
+                        <a href="{% url 'users:home' %}" class="btn btn-outline-primary">На главную</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Добавлена секция задач -->
+    <div class="row justify-content-center mt-4">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Управление задачами</h5>
+                    <small>У вас {{ total_tasks|default:0 }} задач (созданных вами)</small>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                        <a href="{% url 'tasks:task_list' %}" class="btn btn-primary me-md-2">Просмотреть все задачи</a>
+                        <a href="{% url 'tasks:create_task' %}" class="btn btn-success me-md-2">Создать новую задачу</a>
+                        <a href="{% url 'tasks:create_list' %}" class="btn btn-info">Создать список задач</a>
+                    </div>
+                    {% if recent_tasks %}
+                        <hr class="my-3">
+                        <h6>Последние задачи:</h6>
+                        <ul class="list-group list-group-flush">
+                            {% for task in recent_tasks %}
+                                <li class="list-group-item d-flex justify-content-between">
+                                    {{ task.title }} 
+                                    <span class="badge bg-secondary">{{ task.get_status_display }}</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="alert alert-info mt-3">
+                            Нет задач. <a href="{% url 'tasks:create_task' %}">Создайте первую!</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ← НОВОЕ: Секция уведомлений в профиле (превью последних 3) -->
+    <div class="row justify-content-center mt-4">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Уведомления</h5>
+                    <small>{{ unread_count }} непрочитанных</small>
+                </div>
+                <div class="card-body">
+                    <a href="{% url 'users:notifications' %}" class="btn btn-outline-primary mb-2">Все уведомления</a>
+                    {% if unread_count > 0 %}
+                        <div class="alert alert-warning">
+                            У вас {{ unread_count }} новых уведомлений!
+                        </div>
+                    {% endif %}
+                    <!-- Превью последних 3 уведомлений -->
+                    {% if recent_notifications %}
+                        <ul class="list-group list-group-flush">
+                            {% for notif in recent_notifications %}
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>{{ notif.message|truncatechars:50 }}</span>
+                                    <small class="text-muted">{{ notif.created_at|date:"d.m.Y H:i" }}</small>
+                                    {% if not notif.is_read %}
+                                        <span class="badge bg-danger">Новое</span>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted">Нет уведомлений.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

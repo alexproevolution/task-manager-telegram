@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+
+{% block title %}Создать список задач{% endblock %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h2 class="mb-0">Создать список задач</h2>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">{{ form.name.label }}</label>
+                            {{ form.name|add_class:"form-control" }}
+                            {% if form.name.errors %}
+                                <div class="text-danger">{{ form.name.errors }}</div>
+                            {% endif %}
+                            <div class="form-text">Введите название списка (например, "Спринт 1" или "Общие задачи").</div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success w-100">Создать список</button>
+                    </form>
+                    
+                    <div class="mt-3 text-center">
+                        <a href="{% url 'tasks:task_list' %}" class="btn btn-outline-secondary">Отмена</a>  <!-- ← ИСПРАВЛЕНО: Добавлен 'tasks:' -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
